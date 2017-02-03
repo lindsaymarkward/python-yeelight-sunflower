@@ -59,19 +59,32 @@ class Hub:
         # join all parts to make final string
         return ''.join(total_data)
 
-    def get_lights(self):
-        # TODO: (?? not sure about this)
-        self._bulbs = []  # clear existing bulbs
-
+    def get_data(self):
         response = self.send_command(GET_LIGHTS_COMMAND)
         # deconstruct response string into light data
         # Example data: GLB 143E,1,1,25,255,255,255,0,0;287B,1,1,22,255,255,255,0,0;\r\n
         response = response[4:-3]  # strip start (GLB) and end (;\r\n)
         light_strings = response.split(';')
+        light_data_by_id = {}
         for light_string in light_strings:
             values = light_string.split(',')
-            data = (values[0], values[4], values[5], values[6], values[7])
-            self._bulbs.append(Bulb(self, *data))
+            try:
+                light_data_by_id[values[0]] = [int(values[4]), int(values[5]), int(values[6]), int(values[7])]
+            except ValueError:
+                pass
+        return light_data_by_id
+
+    def get_lights(self):
+        light_data = self.get_data()
+        if self._bulbs:
+            # Bulbs already created, just update values
+            for bulb in self._bulbs:
+                # use the values for the bulb with the correct ID
+                values = light_data[bulb.id]
+                bulb._r, bulb._g, bulb._b, bulb._level = values
+        else:
+            for light_id in light_data:
+                self._bulbs.append(Bulb(self, light_id, *light_data[light_id]))
         # return a list of Bulb objects
         return self._bulbs
 
@@ -89,10 +102,10 @@ class Bulb:
         """
         self._hub = hub
         self._id = id
-        self._r = r
-        self._g = g
-        self._b = b
-        self._level = level
+        self._r = int(r)
+        self._g = int(g)
+        self._b = int(b)
+        self._level = int(level)
 
     @property
     def brightness(self):
@@ -103,6 +116,7 @@ class Bulb:
     def rgb_color(self):
         """Return the color property"""
         return [self._r, self._g, self._b]
+    # TODO consider adding setters
 
     @property
     def id(self):
@@ -117,20 +131,17 @@ class Bulb:
         response = self._hub.send_command("C {},,,,0,\r\n".format(self._id))
         return response
 
+    def set_rgb_color(self, r, g, b):
+        response = self._hub.send_command("C {},{},{},{},,\r\n".format(self._id, r, g, b))
+        return response
+
+    def set_brightness(self, brightness):
+        response = self._hub.send_command("C {},,,,{},\r\n".format(self._id, brightness))
+        return response
+
     def is_on(self):
         return self._level > 0
 
     def update(self):
-        # TODO: just update data from command; don't re-create Bulb objects
         self._hub.get_lights()
 
-
-def demo():
-    hub = Hub()
-    print("OK" if hub.check() else "Not OK")
-
-    bulbs = hub.get_lights()
-    bulbs[0].turn_off()
-
-
-# demo()
