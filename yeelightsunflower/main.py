@@ -72,8 +72,7 @@ class Hub:
             values = light_string.split(',')
             data = (values[0], values[4], values[5], values[6], values[7])
             self._bulbs.append(Bulb(self, *data))
-            # print(data)
-        # print(self._bulbs)
+        # return a list of Bulb objects
         return self._bulbs
 
     def check(self):
@@ -95,6 +94,21 @@ class Bulb:
         self._b = b
         self._level = level
 
+    @property
+    def brightness(self):
+        """ Return the brightness level"""
+        return self._level
+
+    @property
+    def rgb_color(self):
+        """Return the color property"""
+        return [self._r, self._g, self._b]
+
+    @property
+    def id(self):
+        """ Return the bulb ID"""
+        return self._id
+
     def turn_on(self):
         response = self._hub.send_command("C {},,,,100,\r\n".format(self._id))
         return response
@@ -102,6 +116,13 @@ class Bulb:
     def turn_off(self):
         response = self._hub.send_command("C {},,,,0,\r\n".format(self._id))
         return response
+
+    def is_on(self):
+        return self._level > 0
+
+    def update(self):
+        # TODO: just update data from command; don't re-create Bulb objects
+        self._hub.get_lights()
 
 
 def demo():
@@ -112,4 +133,4 @@ def demo():
     bulbs[0].turn_off()
 
 
-demo()
+# demo()
