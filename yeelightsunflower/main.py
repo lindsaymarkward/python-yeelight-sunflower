@@ -1,10 +1,8 @@
 import socket
 import time
 
-GET_LIGHTS_COMMAND = "GLB,,,,0,\r\n"
-
 __author__ = 'Lindsay Ward'
-
+GET_LIGHTS_COMMAND = "GLB,,,,0,\r\n"
 BUFFER_SIZE = 8192
 
 
@@ -14,53 +12,56 @@ class Hub:
         self._port = port
         self._ip = ip
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.settimeout(5)
         self._bulbs = []
 
-        # def connect(self):
-        # TODO: add error handling
-        self._socket.connect((self._ip, self._port))
+        try:
+            self._socket.connect((self._ip, self._port))
+        except OSError:
+            self._socket.close()
 
     def send_command(self, command):
         self._socket.send(command.encode("utf8"))
-        return self._receive()
+        return self.receive()
 
-    def _receive(self, timeout=2):
-        # make socket non-blocking
-        self._socket.setblocking(0)
+    def receive(self):
+        """
+        Receive a TCP response, looping to get the whole thing (or timeout)
+        """
+        try:
+            buf = self._socket.recv(BUFFER_SIZE)
+        except socket.timeout:
+            # Something is wrong, assume it's offline
+            self._socket.close()
+            return False
 
-        # total data partwise in an array
-        total_data = []
-
-        # beginning time
-        begin = time.time()
-        while True:
-            # if you got some data, then break after timeout
-            if total_data and time.time() - begin > timeout:
-                break
-
-            # if you got no data at all, wait a little longer, twice the timeout
-            elif time.time() - begin > timeout * 2:
-                break
-
-            # _receive something
-            try:
-                data = self._socket.recv(BUFFER_SIZE)
-                # print("Got: ", repr(data))
-                if data:
-                    total_data.append(data.decode())
-                    # change the beginning time for measurement
-                    begin = time.time()
+        # Read until a newline or timeout
+        buffering = True
+        response = ''
+        while buffering:
+            # print("buf: {}".format(buf))
+            if '\n' in str(buf, 'utf-8'):
+                response = str(buf, 'utf-8').split('\n')[0]
+                buffering = False
+            else:
+                try:
+                    more = self._socket.recv(BUFFER_SIZE)
+                except socket.timeout:
+                    more = None
+                if not more:
+                    buffering = False
+                    response = str(buf, 'utf-8')
                 else:
-                    # sleep for sometime to indicate a gap
-                    time.sleep(0.1)
-            except:
-                pass
-
-        # join all parts to make final string
-        return ''.join(total_data)
+                    buf += more
+        # print("in receive: {}".format(response))
+        return response
 
     def get_data(self):
         response = self.send_command(GET_LIGHTS_COMMAND)
+        # print("response: {}".format(response))
+        if not response:
+            return {}
+
         # deconstruct response string into light data
         # Example data: GLB 143E,1,1,25,255,255,255,0,0;287B,1,1,22,255,255,255,0,0;\r\n
         response = response[4:-3]  # strip start (GLB) and end (;\r\n)
@@ -76,6 +77,10 @@ class Hub:
 
     def get_lights(self):
         light_data = self.get_data()
+        # print("get_data: {}".format(light_data))
+        if not light_data:
+            return False
+
         if self._bulbs:
             # Bulbs already created, just update values
             for bulb in self._bulbs:
@@ -90,7 +95,7 @@ class Hub:
 
     def check(self):
         response = self.send_command("HB\r\n")
-        return response == "HACK\r\n"
+        return "HACK" in response
 
 
 class Bulb:
@@ -114,9 +119,8 @@ class Bulb:
 
     @property
     def rgb_color(self):
-        """Return the color property"""
+        """Return the color property as list of [R, G, B], each 0-255"""
         return [self._r, self._g, self._b]
-    # TODO consider adding setters
 
     @property
     def id(self):
@@ -144,4 +148,3 @@ class Bulb:
 
     def update(self):
         self._hub.get_lights()
-

@@ -1,1 +1,4 @@
 .idea/
+build/
+yeelightsunflower.egg-info/
+yeelightsunflower/__pycache__/
