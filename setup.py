@@ -23,5 +23,5 @@ setup(
     license='MIT',
     author='Lindsay Ward',
     author_email='lindsay.ward@jcu.edu.au',
-    description='Python package for interacting with Yeelight Sunflower light bulbs'
+    description='Python package for interacting with Yeelight Sunflower bulbs'
 )
