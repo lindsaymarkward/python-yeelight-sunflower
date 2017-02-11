@@ -114,7 +114,8 @@ class Hub:
         # return a list of Bulb objects
         return self._bulbs
 
-    def check(self):
+    @property
+    def available(self):
         """Check if hub is responsive."""
         response = self.send_command("HB\r\n")
         return "HACK" in response
@@ -127,9 +128,7 @@ class Bulb:
     Data and methods for light color and brightness. Requires Hub.
     """
 
-    # pylint: disable=too-many-arguments
     def __init__(self, hub, zid, red, green, blue, level):
-        # pylint: enable=too-many-arguments
         """Construct a Bulb (light) based on current values."""
         self._hub = hub
         self._zid = zid
@@ -152,6 +151,21 @@ class Bulb:
     def zid(self):
         """Return the bulb ID."""
         return self._zid
+
+    @property
+    def available(self):
+        """Return True if this bulb appears in the current list of bulbs."""
+        found = False
+        for bulb in self._hub.get_lights():
+            if bulb.zid == self._zid:
+                found = True
+                break
+        return found
+
+    @property
+    def is_on(self):
+        """Determine if bulb is on (brightness not zero)."""
+        return self._level > 0
 
     def turn_on(self):
         """Turn bulb on (full brightness)."""
@@ -186,10 +200,6 @@ class Bulb:
                                            brightness))
         print("Set all {}".format(response))
         return response
-
-    def is_on(self):
-        """Determine if bulb is on (brightness not zero)."""
-        return self._level > 0
 
     def update(self):
         """Update light objects to their current values."""
