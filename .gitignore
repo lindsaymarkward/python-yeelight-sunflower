@@ -1,7 +1,11 @@
 .idea/
 .tox/
+.cache/
 dist/
 build/
 yeelightsunflower.egg-info/
 yeelightsunflower/__pycache__/
 yeelightsunflower.py
+.coverage
+yeelightsunflower/*.pyc
+MANIFEST

@@ -7,7 +7,7 @@ This module exports the Hub and Bulb classes. All bulbs belong to one hub.
 import logging
 import socket
 
-GET_LIGHTS_COMMAND = "GLB,,,,0,\r\n"
+GET_LIGHTS_COMMAND = "GL,,,,0,\r\n"
 BUFFER_SIZE = 8192
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,12 +25,12 @@ class Hub:
         self._port = port
         self._ip = ip
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.settimeout(5)
+        self._socket.settimeout(4)
         self._bulbs = []
 
         try:
             self._socket.connect((self._ip, self._port))
-        except OSError as error:
+        except socket.error as error:
             _LOGGER.error("Error creating Hub: %s", error)
             self._socket.close()
 
@@ -41,7 +41,7 @@ class Hub:
             result = self.receive()
             _LOGGER.debug("Received: %s", result)
             return result
-        except OSError as error:
+        except socket.error as error:
             _LOGGER.error("Error sending command: %s", error)
             return ""
 
@@ -59,8 +59,8 @@ class Hub:
         buffering = True
         response = ''
         while buffering:
-            if '\n' in str(buf, 'utf-8'):
-                response = str(buf, 'utf-8').split('\n')[0]
+            if '\n' in buf.decode("utf8"):
+                response = buf.decode("utf8").split('\n')[0]
                 buffering = False
             else:
                 try:
@@ -69,7 +69,7 @@ class Hub:
                     more = None
                 if not more:
                     buffering = False
-                    response = str(buf, 'utf-8')
+                    response = buf.decode("utf8")
                 else:
                     buf += more
         return response
@@ -110,7 +110,7 @@ class Hub:
                 # use the values for the bulb with the correct ID
                 try:
                     values = light_data[bulb.zid]
-                    bulb._r, bulb._g, bulb._b, bulb._level = values
+                    bulb._red, bulb._green, bulb._blue, bulb._level = values
                 except KeyError:
                     pass
         else:
@@ -145,11 +145,13 @@ class Bulb:
     @property
     def brightness(self):
         """Return the brightness level."""
+        self.update()
         return self._level
 
     @property
     def rgb_color(self):
         """Return the color property as list of [R, G, B], each 0-255."""
+        self.update()
         return [self._red, self._green, self._blue]
 
     @property
@@ -170,40 +172,43 @@ class Bulb:
     @property
     def is_on(self):
         """Determine if bulb is on (brightness not zero)."""
+        self.update()
         return self._level > 0
 
     def turn_on(self):
         """Turn bulb on (full brightness)."""
-        response = self._hub.send_command("C {},,,,100,\r\n".format(self._zid))
-        _LOGGER.debug("Turn on: %s", response)
+        command = "C {},,,,100,\r\n".format(self._zid)
+        response = self._hub.send_command(command)
+        _LOGGER.debug("Turn on %s: %s", repr(command), response)
         return response
 
     def turn_off(self):
         """Turn bulb off (zero brightness)."""
-        response = self._hub.send_command("C {},,,,0,\r\n".format(self._zid))
-        _LOGGER.debug("Turn off: %s", response)
+        command = "C {},,,,0,\r\n".format(self._zid)
+        response = self._hub.send_command(command)
+        _LOGGER.debug("Turn off %s: %s", repr(command), response)
         return response
 
     def set_rgb_color(self, red, green, blue):
         """Set color of bulb."""
-        response = self._hub.send_command(
-            "C {},{},{},{},,\r\n".format(self._zid, red, green, blue))
-        _LOGGER.debug("Set RGB: %s", response)
+        command = "C {},{},{},{},,\r\n".format(self._zid, red, green, blue)
+        response = self._hub.send_command(command)
+        _LOGGER.debug("Set RGB %s: %s", repr(command), response)
         return response
 
     def set_brightness(self, brightness):
         """Set brightness of bulb."""
-        response = self._hub.send_command(
-            "C {},,,,{},\r\n".format(self._zid, brightness))
-        _LOGGER.debug("Set brightness: %s", response)
+        command = "C {},,,,{},\r\n".format(self._zid, brightness)
+        response = self._hub.send_command(command)
+        _LOGGER.debug("Set brightness %s: %s", repr(command), response)
         return response
 
     def set_all(self, red, green, blue, brightness):
         """Set color and brightness of bulb."""
-        response = self._hub.send_command(
-            "C {},{},{},{},{},\r\n".format(self._zid, red, green, blue,
-                                           brightness))
-        _LOGGER.debug("Set all: %s", response)
+        command = "C {},{},{},{},{},\r\n".format(self._zid, red, green, blue,
+                                                 brightness)
+        response = self._hub.send_command(command)
+        _LOGGER.debug("Set all %s: %s", repr(command), response)
         return response
 
     def update(self):
