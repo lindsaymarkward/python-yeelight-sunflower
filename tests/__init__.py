@@ -1,4 +1,11 @@
 from yeelightsunflower.main import Hub, Bulb
+import logging
+
+# Setup logging
+logger = logging.getLogger('yeelightsunflower')
+logger.setLevel(logging.INFO)
+console_handler = logging.StreamHandler()
+logger.addHandler(console_handler)
 
 # TODO write more tests
 
@@ -31,5 +38,5 @@ def test_hub():
     bad_hub = Hub('1.0.0.0')
     assert not bad_hub.available
 
-# demo()
+demo()
 test_hub()

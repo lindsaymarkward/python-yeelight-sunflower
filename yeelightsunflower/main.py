@@ -38,7 +38,9 @@ class Hub:
         """Send TCP command to hub."""
         try:
             self._socket.send(command.encode("utf8"))
-            return self.receive()
+            result = self.receive()
+            _LOGGER.debug("Received: %s", result)
+            return result
         except OSError as error:
             _LOGGER.error("Error sending command: %s", error)
             return ""
@@ -47,8 +49,9 @@ class Hub:
         """Receive TCP response, looping to get whole thing or timeout."""
         try:
             buf = self._socket.recv(BUFFER_SIZE)
-        except socket.timeout:
+        except socket.timeout as error:
             # Something is wrong, assume it's offline
+            _LOGGER.error("Error receiving: %s", error)
             self._socket.close()
             return False
 
@@ -56,7 +59,6 @@ class Hub:
         buffering = True
         response = ''
         while buffering:
-            _LOGGER.debug("buf: %s", buf)
             if '\n' in str(buf, 'utf-8'):
                 response = str(buf, 'utf-8').split('\n')[0]
                 buffering = False
@@ -70,7 +72,6 @@ class Hub:
                     response = str(buf, 'utf-8')
                 else:
                     buf += more
-        # _LOGGER.debug("in receive: %s", response)
         return response
 
     def get_data(self):
@@ -174,27 +175,27 @@ class Bulb:
     def turn_on(self):
         """Turn bulb on (full brightness)."""
         response = self._hub.send_command("C {},,,,100,\r\n".format(self._zid))
-        _LOGGER.debug("Turn on %s", response)
+        _LOGGER.debug("Turn on: %s", response)
         return response
 
     def turn_off(self):
         """Turn bulb off (zero brightness)."""
         response = self._hub.send_command("C {},,,,0,\r\n".format(self._zid))
-        _LOGGER.debug("Turn off %s", response)
+        _LOGGER.debug("Turn off: %s", response)
         return response
 
     def set_rgb_color(self, red, green, blue):
         """Set color of bulb."""
         response = self._hub.send_command(
             "C {},{},{},{},,\r\n".format(self._zid, red, green, blue))
-        _LOGGER.debug("Set RGB %s", response)
+        _LOGGER.debug("Set RGB: %s", response)
         return response
 
     def set_brightness(self, brightness):
         """Set brightness of bulb."""
         response = self._hub.send_command(
             "C {},,,,{},\r\n".format(self._zid, brightness))
-        _LOGGER.debug("Set brightness %s", response)
+        _LOGGER.debug("Set brightness: %s", response)
         return response
 
     def set_all(self, red, green, blue, brightness):
@@ -202,7 +203,7 @@ class Bulb:
         response = self._hub.send_command(
             "C {},{},{},{},{},\r\n".format(self._zid, red, green, blue,
                                            brightness))
-        _LOGGER.debug("Set all %s", response)
+        _LOGGER.debug("Set all: %s", response)
         return response
 
     def update(self):
