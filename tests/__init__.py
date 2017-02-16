@@ -11,11 +11,14 @@ def demo():
     # bulbs[0].turn_off()
 
     light = get_bulb('3CB8', bulbs)
-    print(light.available)
-    light.set_rgb_color(0, 255, 255)
-    # light.set_rgb_color(255, 0, 255)
-    light.set_brightness(20)
-    light.turn_off()
+    if light is not None:
+        print(light.available)
+        light.set_rgb_color(0, 255, 255)
+        # light.set_rgb_color(255, 0, 255)
+        light.set_brightness(20)
+        light.turn_off()
+    else:
+        print("Error getting light")
 
 
 def get_bulb(zid, bulbs) -> Bulb:
@@ -24,4 +27,9 @@ def get_bulb(zid, bulbs) -> Bulb:
             return bulb
 
 
-demo()
+def test_hub():
+    bad_hub = Hub('1.0.0.0')
+    assert not bad_hub.available
+
+# demo()
+test_hub()
