@@ -1,3 +1,4 @@
+import io
 from distutils.core import setup
 from yeelightsunflower import __version__, __author__, __license__, __title__
 
@@ -9,7 +10,7 @@ def read(*filenames, **kwargs):
     sep = kwargs.get('sep', '\n')
     buf = []
     for filename in filenames:
-        with open(filename, encoding=encoding) as f:
+        with io.open(filename, encoding=encoding) as f:
             buf.append(f.read())
     return sep.join(buf)
 

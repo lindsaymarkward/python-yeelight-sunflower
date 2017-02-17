@@ -71,4 +71,18 @@ def get_bulb(zid, bulbs):
 
 
 # demo()
-test_hub()
+# test_hub()
+
+
+def test_fast_updates():
+    hub = Hub()
+    bulbs = hub.get_lights()
+    b = get_bulb('3CB8', bulbs)
+    for i in range(0, 101):
+        b.set_brightness(i)
+        b.update()
+    for i in range(0, 255):
+        b.set_rgb_color(i, i, i)
+        b.update()
+
+test_fast_updates()

@@ -39,6 +39,10 @@ class Hub:
         try:
             self._socket.send(command.encode("utf8"))
             result = self.receive()
+            # hub may send "status" or "new" messages that should be ignored
+            while result.startswith("S") or result.startswith("NEW"):
+                # _LOGGER.info("!Got status response: %s", result)
+                result = self.receive()
             _LOGGER.debug("Received: %s", result)
             return result
         except socket.error as error:
@@ -81,6 +85,10 @@ class Hub:
         if not response:
             return {}
 
+        # TODO check structure of string first (8 , per ; ... no ',,')
+        # or just use exceptions as doing...?
+        # seems it's probably an async problem
+
         # deconstruct response string into light data. Example data:
         # GLB 143E,1,1,25,255,255,255,0,0;287B,1,1,22,255,255,255,0,0;\r\n
         response = response[4:-3]  # strip start (GLB) and end (;\r\n)
@@ -92,9 +100,9 @@ class Hub:
                 light_data_by_id[values[0]] = [int(values[4]), int(values[5]),
                                                int(values[6]), int(values[7])]
             except ValueError as error:
-                _LOGGER.error("*** Error %s: %s", error, values)
+                _LOGGER.error("*** Error %s: %s (%s)", error, values, response)
             except IndexError as error:
-                _LOGGER.error("*** Error %s: %s", error, values)
+                _LOGGER.error("*** Error %s: %s (%s)", error, values, response)
         return light_data_by_id
 
     def get_lights(self):
