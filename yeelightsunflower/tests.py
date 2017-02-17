@@ -71,4 +71,4 @@ def get_bulb(zid, bulbs):
 
 
 # demo()
-# test_hub()
+test_hub()

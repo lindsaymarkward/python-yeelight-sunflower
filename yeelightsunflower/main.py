@@ -6,6 +6,7 @@ This module exports the Hub and Bulb classes. All bulbs belong to one hub.
 
 import logging
 import socket
+import threading
 
 GET_LIGHTS_COMMAND = "GL,,,,0,\r\n"
 BUFFER_SIZE = 8192
@@ -27,6 +28,7 @@ class Hub:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.settimeout(4)
         self._bulbs = []
+        self.lock = threading.Lock()
 
         try:
             self._socket.connect((self._ip, self._port))
@@ -36,18 +38,20 @@ class Hub:
 
     def send_command(self, command):
         """Send TCP command to hub."""
-        try:
-            self._socket.send(command.encode("utf8"))
-            result = self.receive()
-            # hub may send "status" or "new" messages that should be ignored
-            while result.startswith("S") or result.startswith("NEW"):
-                # _LOGGER.info("!Got status response: %s", result)
+        # use lock to make TCP send/receive thread safe
+        with self.lock:
+            try:
+                self._socket.send(command.encode("utf8"))
                 result = self.receive()
-            _LOGGER.debug("Received: %s", result)
-            return result
-        except socket.error as error:
-            _LOGGER.error("Error sending command: %s", error)
-            return ""
+                # hub may send "status"/"new" messages that should be ignored
+                while result.startswith("S") or result.startswith("NEW"):
+                    # _LOGGER.info("!Got status response: %s", result)
+                    result = self.receive()
+                _LOGGER.debug("Received: %s", result)
+                return result
+            except socket.error as error:
+                _LOGGER.error("Error sending command: %s", error)
+                return ""
 
     def receive(self):
         """Receive TCP response, looping to get whole thing or timeout."""
