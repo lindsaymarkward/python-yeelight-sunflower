@@ -11,6 +11,6 @@ Project repo: https://github.com/lindsaymarkward/python-yeelight-sunflower
 from yeelightsunflower.main import Hub, Bulb
 
 __title__ = 'yeelightsunflower'
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 __author__ = 'Lindsay Ward'
 __license__ = 'MIT'

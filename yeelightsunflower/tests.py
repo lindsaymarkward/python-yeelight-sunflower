@@ -4,7 +4,9 @@ import logging
 import time
 from yeelightsunflower.main import Hub
 
+ZID_TO_TEST = '3CB8'
 SECONDS_TO_WAIT = 2.95
+
 # Setup logging
 LOGGER = logging.getLogger('yeelightsunflower')
 LOGGER.setLevel(logging.DEBUG)
@@ -31,7 +33,7 @@ def demo():
     bulbs = hub.get_lights()
 
     # Enter zid of bulb to test, or use the line below this to get first one
-    light = get_bulb('3CB8', bulbs)
+    light = get_bulb(ZID_TO_TEST, bulbs)
     # light = bulbs[0]
     if light is not None:
         if light.available:
@@ -40,9 +42,12 @@ def demo():
             light.turn_on()
             time.sleep(SECONDS_TO_WAIT)
             assert light.is_on
+            light.update()
+            light.update()
             # light.set_rgb_color(255, 0, 255)
             light.set_rgb_color(0, 255, 255)
             time.sleep(SECONDS_TO_WAIT)
+            light.update()
             assert light.rgb_color == [0, 255, 255]
             light.set_brightness(42)
             time.sleep(SECONDS_TO_WAIT)
@@ -57,6 +62,7 @@ def demo():
                         light.brightness)
             assert light.brightness == 92
             assert light.rgb_color == [128, 129, 130]
+            light.turn_off()
         else:
             LOGGER.info("Light is not available")
     else:

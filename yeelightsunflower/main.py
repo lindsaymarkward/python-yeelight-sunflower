@@ -4,12 +4,14 @@ Python module for controlling Yeelight Sunflower bulbs.
 This module exports the Hub and Bulb classes. All bulbs belong to one hub.
 """
 
+import datetime
 import logging
 import socket
 import threading
 
 GET_LIGHTS_COMMAND = "GL,,,,0,\r\n"
 BUFFER_SIZE = 8192
+UPDATE_INTERVAL_SECONDS = 1
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -28,7 +30,10 @@ class Hub:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.settimeout(4)
         self._bulbs = []
-        self.lock = threading.Lock()
+        self._lock = threading.Lock()
+        # set last updated time to old time so first update will happen
+        self._last_updated = datetime.datetime.now() - datetime.timedelta(
+            seconds=30)
 
         try:
             self._socket.connect((self._ip, self._port))
@@ -39,7 +44,7 @@ class Hub:
     def send_command(self, command):
         """Send TCP command to hub."""
         # use lock to make TCP send/receive thread safe
-        with self.lock:
+        with self._lock:
             try:
                 self._socket.send(command.encode("utf8"))
                 result = self.receive()
@@ -89,10 +94,6 @@ class Hub:
         if not response:
             return {}
 
-        # TODO check structure of string first (8 , per ; ... no ',,')
-        # or just use exceptions as doing...?
-        # seems it's probably an async problem
-
         # deconstruct response string into light data. Example data:
         # GLB 143E,1,1,25,255,255,255,0,0;287B,1,1,22,255,255,255,0,0;\r\n
         response = response[4:-3]  # strip start (GLB) and end (;\r\n)
@@ -101,16 +102,26 @@ class Hub:
         for light_string in light_strings:
             values = light_string.split(',')
             try:
-                light_data_by_id[values[0]] = [int(values[4]), int(values[5]),
-                                               int(values[6]), int(values[7])]
+                light_data_by_id[values[0]] = [int(values[2]), int(values[4]),
+                                               int(values[5]), int(values[6]),
+                                               int(values[7])]
             except ValueError as error:
-                _LOGGER.error("*** Error %s: %s (%s)", error, values, response)
+                _LOGGER.error("Error %s: %s (%s)", error, values, response)
             except IndexError as error:
-                _LOGGER.error("*** Error %s: %s (%s)", error, values, response)
+                _LOGGER.error("Error %s: %s (%s)", error, values, response)
         return light_data_by_id
 
     def get_lights(self):
         """Get current light data, set and return as list of Bulb objects."""
+        # Throttle updates. Use cached data if within UPDATE_INTERVAL_SECONDS
+        now = datetime.datetime.now()
+        if (now - self._last_updated) < datetime.timedelta(
+                seconds=UPDATE_INTERVAL_SECONDS):
+            _LOGGER.debug("Using cached light data")
+            return self._bulbs
+        else:
+            self._last_updated = now
+
         light_data = self.get_data()
         _LOGGER.debug("got: %s", light_data)
         if not light_data:
@@ -122,7 +133,8 @@ class Hub:
                 # use the values for the bulb with the correct ID
                 try:
                     values = light_data[bulb.zid]
-                    bulb._red, bulb._green, bulb._blue, bulb._level = values
+                    bulb._online, bulb._red, bulb._green, bulb._blue, \
+                        bulb._level = values
                 except KeyError:
                     pass
         else:
@@ -145,10 +157,11 @@ class Bulb:
     Data and methods for light color and brightness. Requires Hub.
     """
 
-    def __init__(self, hub, zid, red, green, blue, level):
+    def __init__(self, hub, zid, online, red, green, blue, level):
         """Construct a Bulb (light) based on current values."""
         self._hub = hub
         self._zid = zid
+        self._online = online == 1  # online = 1, offline = 0
         self._red = int(red)
         self._green = int(green)
         self._blue = int(blue)
@@ -173,13 +186,9 @@ class Bulb:
 
     @property
     def available(self):
-        """Return True if this bulb appears in the current list of bulbs."""
-        found = False
-        for bulb in self._hub.get_lights():
-            if bulb.zid == self._zid:
-                found = True
-                break
-        return found
+        """Return True if this bulb is online in the current list of bulbs."""
+        self.update()
+        return self._online
 
     @property
     def is_on(self):
