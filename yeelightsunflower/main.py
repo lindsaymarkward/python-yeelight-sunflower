@@ -29,15 +29,19 @@ class Hub:
         """Create a hub with given IP and port, establishing socket."""
         self._port = port
         self._ip = ip
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.settimeout(TIMEOUT_SECONDS)
+        self._socket = None
         self._bulbs = []
         self._lock = threading.Lock()
         # set last updated time to old time so first update will happen
         self._last_updated = datetime.datetime.now() - datetime.timedelta(
             seconds=30)
+        self.connect()
 
+    def connect(self):
+        """Create and connect to socket for TCP communication with hub."""
         try:
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._socket.settimeout(TIMEOUT_SECONDS)
             self._socket.connect((self._ip, self._port))
             _LOGGER.debug("Successfully created Hub at %s:%s :)", self._ip,
                           self._port)
@@ -66,7 +70,8 @@ class Hub:
                 return result
             except socket.error as error:
                 _LOGGER.error("Error sending command: %s", error)
-                # TODO: try re-connecting socket here
+                # try re-connecting socket
+                self.connect()
                 return ""
 
     def receive(self):
@@ -145,7 +150,7 @@ class Hub:
                 try:
                     values = light_data[bulb.zid]
                     bulb._online, bulb._red, bulb._green, bulb._blue, \
-                    bulb._level = values
+                        bulb._level = values
                 except KeyError:
                     pass
         else:
@@ -243,4 +248,3 @@ class Bulb:
         if not bulbs:
             _LOGGER.debug("%s is offline, send command failed", self._zid)
             self._online = False
-
