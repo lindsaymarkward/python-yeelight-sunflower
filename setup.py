@@ -2,8 +2,6 @@ import io
 from distutils.core import setup
 from yeelightsunflower import __version__, __author__, __license__, __title__
 
-# TODO check/add Python 2 support
-
 
 def read(*filenames, **kwargs):
     encoding = kwargs.get('encoding', 'utf-8')
@@ -14,7 +12,7 @@ def read(*filenames, **kwargs):
             buf.append(f.read())
     return sep.join(buf)
 
-long_description = read('README.md')
+long_description = read('README.md', 'CHANGELOG.md')
 
 classifiers = [
     'Development Status :: 3 - Alpha',

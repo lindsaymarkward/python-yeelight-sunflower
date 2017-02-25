@@ -9,6 +9,8 @@ import logging
 import socket
 import threading
 
+TIMEOUT_SECONDS = 2
+
 GET_LIGHTS_COMMAND = "GL,,,,0,\r\n"
 BUFFER_SIZE = 8192
 UPDATE_INTERVAL_SECONDS = 1
@@ -28,7 +30,7 @@ class Hub:
         self._port = port
         self._ip = ip
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.settimeout(4)
+        self._socket.settimeout(TIMEOUT_SECONDS)
         self._bulbs = []
         self._lock = threading.Lock()
         # set last updated time to old time so first update will happen
@@ -37,9 +39,17 @@ class Hub:
 
         try:
             self._socket.connect((self._ip, self._port))
+            _LOGGER.debug("Successfully created Hub at %s:%s :)", self._ip,
+                          self._port)
         except socket.error as error:
-            _LOGGER.error("Error creating Hub: %s", error)
+            _LOGGER.error("Error creating Hub: %s :(", error)
             self._socket.close()
+
+    @property
+    def available(self):
+        """Check if hub is responsive."""
+        response = self.send_command("HB\r\n")
+        return "HACK" in response
 
     def send_command(self, command):
         """Send TCP command to hub."""
@@ -50,30 +60,31 @@ class Hub:
                 result = self.receive()
                 # hub may send "status"/"new" messages that should be ignored
                 while result.startswith("S") or result.startswith("NEW"):
-                    # _LOGGER.info("!Got status response: %s", result)
+                    _LOGGER.debug("!Got response: %s", result)
                     result = self.receive()
                 _LOGGER.debug("Received: %s", result)
                 return result
             except socket.error as error:
                 _LOGGER.error("Error sending command: %s", error)
+                # TODO: try re-connecting socket here
                 return ""
 
     def receive(self):
         """Receive TCP response, looping to get whole thing or timeout."""
         try:
-            buf = self._socket.recv(BUFFER_SIZE)
+            buffer = self._socket.recv(BUFFER_SIZE)
         except socket.timeout as error:
-            # Something is wrong, assume it's offline
+            # Something is wrong, assume it's offline temporarily
             _LOGGER.error("Error receiving: %s", error)
-            self._socket.close()
-            return False
+            # self._socket.close()
+            return ""
 
         # Read until a newline or timeout
         buffering = True
         response = ''
         while buffering:
-            if '\n' in buf.decode("utf8"):
-                response = buf.decode("utf8").split('\n')[0]
+            if '\n' in buffer.decode("utf8"):
+                response = buffer.decode("utf8").split('\n')[0]
                 buffering = False
             else:
                 try:
@@ -82,9 +93,9 @@ class Hub:
                     more = None
                 if not more:
                     buffering = False
-                    response = buf.decode("utf8")
+                    response = buffer.decode("utf8")
                 else:
-                    buf += more
+                    buffer += more
         return response
 
     def get_data(self):
@@ -117,7 +128,7 @@ class Hub:
         now = datetime.datetime.now()
         if (now - self._last_updated) < datetime.timedelta(
                 seconds=UPDATE_INTERVAL_SECONDS):
-            _LOGGER.debug("Using cached light data")
+            # _LOGGER.debug("Using cached light data")
             return self._bulbs
         else:
             self._last_updated = now
@@ -134,7 +145,7 @@ class Hub:
                 try:
                     values = light_data[bulb.zid]
                     bulb._online, bulb._red, bulb._green, bulb._blue, \
-                        bulb._level = values
+                    bulb._level = values
                 except KeyError:
                     pass
         else:
@@ -142,12 +153,6 @@ class Hub:
                 self._bulbs.append(Bulb(self, light_id, *light_data[light_id]))
         # return a list of Bulb objects
         return self._bulbs
-
-    @property
-    def available(self):
-        """Check if hub is responsive."""
-        response = self.send_command("HB\r\n")
-        return "HACK" in response
 
 
 class Bulb:
@@ -234,4 +239,8 @@ class Bulb:
 
     def update(self):
         """Update light objects to their current values."""
-        self._hub.get_lights()
+        bulbs = self._hub.get_lights()
+        if not bulbs:
+            _LOGGER.debug("%s is offline, send command failed", self._zid)
+            self._online = False
+
