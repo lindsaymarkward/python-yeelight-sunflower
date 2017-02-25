@@ -4,8 +4,8 @@ Changelog for yeelightsunflower
 0.0.7 (2017-02-25)
 ------------------
 
-- Don't close socket when there's a send/receive error
-- Set availability of lights as False if hub is unavailable
+- Try to reconnect socket when there's a send/receive error 
+- Set availability of lights to False if hub is unavailable
 
 
 0.0.6 (2017-02-23)
