@@ -108,6 +108,11 @@ class Hub:
         response = self.send_command(GET_LIGHTS_COMMAND)
         _LOGGER.debug("get_data response: %s", response)
         if not response:
+            _LOGGER.debug("Empty response: %s", response)
+            return {}
+        # Check string before splitting (avoid IndexError if malformed)
+        if not (response.startswith("GLB") and response.endswith(":")):
+            _LOGGER.debug("Invalid response: %s", response)
             return {}
 
         # deconstruct response string into light data. Example data:
@@ -248,3 +253,4 @@ class Bulb:
         if not bulbs:
             _LOGGER.debug("%s is offline, send command failed", self._zid)
             self._online = False
+# Error list index out of range: ['55', '255', '255', '100', '0'] (55,255,255,100,0;3CB9,1,1,33,255,255,255,100,)
