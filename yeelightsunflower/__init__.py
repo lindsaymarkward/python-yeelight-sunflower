@@ -12,6 +12,6 @@ PyPI: https://pypi.python.org/pypi/yeelightsunflower
 from yeelightsunflower.main import Hub, Bulb
 
 __title__ = 'yeelightsunflower'
-__version__ = '0.0.9'
+__version__ = '0.0.10'
 __author__ = 'Lindsay Ward'
 __license__ = 'MIT'

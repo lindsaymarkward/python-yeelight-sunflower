@@ -1,6 +1,12 @@
 Changelog for yeelightsunflower
 ===============================
 
+0.0.10 (2018-03-09)
+------------------
+
+- Correct string check and missing CHANGELOG (again :)
+        
+
 0.0.9 (2018-03-09)
 ------------------
 
