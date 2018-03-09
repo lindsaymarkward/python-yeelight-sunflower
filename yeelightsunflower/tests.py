@@ -74,6 +74,7 @@ def get_bulb(zid, bulbs):
     for bulb in bulbs:
         if bulb.zid == zid:
             return bulb
+    return None
 
 
 # demo()

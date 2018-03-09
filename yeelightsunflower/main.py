@@ -253,4 +253,3 @@ class Bulb:
         if not bulbs:
             _LOGGER.debug("%s is offline, send command failed", self._zid)
             self._online = False
-# Error list index out of range: ['55', '255', '255', '100', '0'] (55,255,255,100,0;3CB9,1,1,33,255,255,255,100,)
