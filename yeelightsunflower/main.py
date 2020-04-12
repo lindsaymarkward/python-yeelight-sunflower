@@ -141,8 +141,7 @@ class Hub:
                 seconds=UPDATE_INTERVAL_SECONDS):
             # _LOGGER.debug("Using cached light data")
             return self._bulbs
-        else:
-            self._last_updated = now
+        self._last_updated = now
 
         light_data = self.get_data()
         _LOGGER.debug("got: %s", light_data)
